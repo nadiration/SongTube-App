@@ -4,6 +4,7 @@ import 'dart:async';
 
 // Internal
 import 'package:songtube/internal/models/enums.dart';
+import 'package:songtube/internal/youtube/infoparser.dart';
 
 // Packages
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
@@ -23,29 +24,9 @@ class Downloader {
   String lastAudioDownloaded;
   String lastVideoDownloaded;
 
-  static List<VideoStreamInfo> extractVideoStreams(MediaStreamInfoSet list) {
-    List<VideoStreamInfo> videoList = [];
-    list.video.sort((a, b) => int.parse(
-      a.videoQualityLabel.replaceAll(new RegExp(r'p60 HDR'), "")
-      .replaceAll(new RegExp(r'p'), "")
-      .replaceAll(new RegExp(r'p60'), "")).compareTo(int.parse(
-      b.videoQualityLabel.replaceAll(new RegExp(r'p60 HDR'), "")
-      .replaceAll(new RegExp(r'p'), "")
-      .replaceAll(new RegExp(r'p60'), ""))));
-    int _size = list.video.length;
-    for (int i = 0; i <= _size; i++){
-      if (_size-1 == i) {
-        videoList.add(list.video[i]);
-        break;
-      }
-      if (list.video[i].videoQualityLabel != list.video[i+1].videoQualityLabel) {
-        videoList.add(list.video[i]);
-      }
-    }
-    return videoList;
-  }
+  Future<int> downloadStream(Video videoDetails, StreamManifest streamManifest, DownloadType type, [int videoIndex]) async { 
 
-  Future<int> downloadStream(MediaStreamInfoSet mediaStream, DownloadType type, [int videoIndex]) async { 
+    YoutubeExplode yt = YoutubeExplode();
 
     // Check path to save Video
     String _directory = await ExtStorage.getExternalStorageDirectory() + "/SongTube";
@@ -53,15 +34,18 @@ class Downloader {
     _directory = _directory + "/tmp";
     if (!(await Directory(_directory).exists())) await Directory(_directory).create();
 
+    // Video Details
+    List<VideoStreamInfo> videoStreamList = streamManifest.videoOnly.sortByVideoQuality();
+
     // Get video to download
-    var streamToDownload = type == DownloadType.video
-      ? extractVideoStreams(mediaStream)[videoIndex]
-      : mediaStream.audio.last;
+    var streamToGet = type == DownloadType.video
+      ? videoStreamList[videoIndex]
+      : streamManifest.audioOnly.last;
 
     // Compose the file name removing the unallowed characters in windows.
     String _fileName;
-    if (type == DownloadType.video) _fileName = mediaStream.videoDetails.title.toString() + "-video";
-    if (type == DownloadType.audio) _fileName = mediaStream.videoDetails.title.toString() + "-audio";
+    if (type == DownloadType.video) _fileName = videoDetails.title.toString() + "-video";
+    if (type == DownloadType.audio) _fileName = videoDetails.title.toString() + "-audio";
     _fileName = _fileName.replaceAll('Container.', '')
         .replaceAll(r'\', '')
         .replaceAll('/', '')
@@ -79,23 +63,16 @@ class Downloader {
     // Local variables for file status
     var _count = 0;
     var _oldProgress = -1;
-    var _len = streamToDownload.size;
-    fileSize = fileSize + double.parse((streamToDownload.size * 0.000001).toStringAsFixed(2));
-    DateTime currentTime;
-    DateTime now;
+    var _len = streamToGet.size.totalBytes;
+    fileSize = fileSize + double.parse((streamToGet.size.totalBytes * 0.000001).toStringAsFixed(2));
 
     // Start stream download, also update internal public
     // StreamController for external access
-    await for (var data in streamToDownload.downloadStream()) {
-      if (downloadFinished == true) { _output.close(); return null; }
+    await for (var data in yt.videos.streamsClient.get(streamToGet)) {
+      if (downloadFinished == true) { _output.close(); yt.close(); return null; }
       _count += data.length;
-      now = DateTime.now();
-      if (currentTime == null || 
-        now.difference(currentTime) > Duration(milliseconds: 500)) {
-        dataProgress.add((_count * 0.000001).toStringAsFixed(2));
-        print("Downloading: " + _count.toString());
-        currentTime = now;
-      }
+      dataProgress.add((_count * 0.000001).toStringAsFixed(2));
+      print("Downloading: " + _count.toString());
       var progress = ((_count / _len) * 100).round();
       if (progress != _oldProgress) {
         _oldProgress = progress;
@@ -105,6 +82,7 @@ class Downloader {
     }
     downloadFinished = true;
     await _output.close();
+    yt.close();
     type == DownloadType.video
       ? lastVideoDownloaded = "$_directory/$_fileName"
       : lastAudioDownloaded = "$_directory/$_fileName";

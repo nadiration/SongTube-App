@@ -9,9 +9,11 @@ import 'package:flutter_xlider/flutter_xlider.dart';
 
 class CustomDownloadMenu extends StatefulWidget {
   final List<youtube.VideoStreamInfo> videoList;
+  final String audioSize;
   final Function onSettingsPressed;
   CustomDownloadMenu({
     @required this.videoList,
+    @required this.audioSize,
     @required this.onSettingsPressed
   });
   @override
@@ -317,13 +319,34 @@ class _CustomDownloadMenuState extends State<CustomDownloadMenu> with TickerProv
           ),
           subtitle: Text("Download the audio from this video at maximum quality"),
           trailing: Container(
+            padding: const EdgeInsets.only(top: 10, bottom: 10, left: 14, right: 14),
             decoration: BoxDecoration(
               color: Colors.redAccent,
               borderRadius: BorderRadius.circular(30)
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Text("Download", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontFamily: "Varela")),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Text(
+                  "Download",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: "Varela",
+                    fontSize: 13
+                  )
+                ),
+                Text(
+                  widget.audioSize + "MB",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: "Varela",
+                    fontSize: 13
+                  )
+                ),
+              ],
             ),
           ),
           onTap: () => Navigator.pop(context, [
@@ -580,7 +603,7 @@ class _CustomDownloadMenuState extends State<CustomDownloadMenu> with TickerProv
                       ),
                     ) : Container(),
                     Text(
-                      (((widget.videoList[index].size)/1024)/1024).toStringAsFixed(2) +
+                      (((widget.videoList[index].size.totalBytes)/1024)/1024).toStringAsFixed(2) +
                       "MB", style: TextStyle(fontSize: 12, fontFamily: "Varela"),
                     ),
                     Spacer(),

@@ -20,7 +20,8 @@ class DownloadInfoSet {
 
   // Classes
   MediaMetaData metadata;
-  MediaStreamInfoSet mediaStream;
+  Video videoDetails;
+  StreamManifest streamManifest;
   Downloader downloader;
   Converter converter;
 
@@ -34,7 +35,8 @@ class DownloadInfoSet {
 
   DownloadInfoSet({
     @required this.currentAction,
-    @required this.mediaStream,
+    @required this.videoDetails,
+    @required this.streamManifest,
     @required this.metadata,
     @required this.downloadType,
     @required this.convertFormat,

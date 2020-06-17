@@ -12,6 +12,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 // Internal
 import 'package:songtube/internal/lifecycle_events.dart';
 import 'package:songtube/internal/youtube/downloader.dart';
+import 'package:songtube/internal/youtube/infoparser.dart';
 import 'package:songtube/provider/downloads_manager.dart';
 import 'package:songtube/screens/settings.dart';
 import 'package:songtube/ui/home_screen/icontile.dart';
@@ -95,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               child: manager.openWebviewPlayer ? new YoutubePlayer(
                                 key: _playerKey,
                                 controller: YoutubePlayerController(
-                                  initialVideoId: manager.getIdFromLink(),
+                                  initialVideoId: YoutubeInfo.getLinkID(manager.urlController.text),
                                   flags: YoutubePlayerFlags(
                                     autoPlay: true,
                                   ),
@@ -116,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                   children: <Widget>[
                                     FadeInImage(
                                       fadeInDuration: Duration(milliseconds: 300),
-                                      image: NetworkImage(manager.mediaStream.videoDetails.thumbnailSet.highResUrl),
+                                      image: NetworkImage(manager.videoDetails.thumbnails.highResUrl),
                                       placeholder: MemoryImage(kTransparentImage),
                                       fit: BoxFit.fitWidth,
                                     ),
@@ -139,8 +140,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               Padding(
                                 padding: EdgeInsets.only(left: 16, right: 16, bottom: 6),
                                 child: Text(
-                                  manager.mediaStream.videoDetails.duration.inMinutes.remainder(60).toString().padLeft(2, '0') + " min "
-                                  +  manager.mediaStream.videoDetails.duration.inSeconds.remainder(60).toString().padLeft(2, '0') + " sec",
+                                  manager.videoDetails.duration.inMinutes.remainder(60).toString().padLeft(2, '0') + " min "
+                                  +  manager.videoDetails.duration.inSeconds.remainder(60).toString().padLeft(2, '0') + " sec",
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Theme.of(context).iconTheme.color,
@@ -151,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               Padding(
                                 padding: EdgeInsets.only(left: 16, right: 16, bottom: 6),
                                 child: Text(
-                                  "Audio: " + (manager.mediaStream.audio.last.size * 0.000001).toStringAsFixed(2).toString() + "MB",
+                                  "${manager.videoDetails.uploadDate.year}/${manager.videoDetails.uploadDate.month}/${manager.videoDetails.uploadDate.day}",
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Theme.of(context).iconTheme.color,
@@ -195,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                 IconTile(
                                   icon: Icon(MdiIcons.thumbUpOutline, color: Theme.of(context).iconTheme.color),
                                   text: Text(
-                                    NumberFormat.compact().format(manager.mediaStream.videoDetails.statistics.likeCount),
+                                    NumberFormat.compact().format(manager.videoDetails.engagement.likeCount),
                                     style: TextStyle(
                                       fontFamily: "Varela",
                                       fontSize: 10
@@ -205,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                 IconTile(
                                   icon: Icon(MdiIcons.thumbDownOutline, color: Theme.of(context).iconTheme.color),
                                   text: Text(
-                                    NumberFormat.compact().format(manager.mediaStream.videoDetails.statistics.dislikeCount),
+                                    NumberFormat.compact().format(manager.videoDetails.engagement.dislikeCount),
                                     style: TextStyle(
                                       fontFamily: "Varela",
                                       fontSize: 10
@@ -215,7 +216,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                 IconTile(
                                   icon: Icon(EvaIcons.eyeOutline, color: Theme.of(context).iconTheme.color),
                                   text: Text(
-                                    NumberFormat.compact().format(manager.mediaStream.videoDetails.statistics.viewCount),
+                                    NumberFormat.compact().format(manager.videoDetails.engagement.viewCount),
                                     style: TextStyle(
                                       fontFamily: "Varela",
                                       fontSize: 10
@@ -403,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             prefixIcon: Icon(Icons.https),
             indicatorValue: manager.showLoadingBar == true ? null : 0.0,
             onSearchPressed: () {
-              manager.getMediaStreamInfo(manager.getIdFromLink());
+              manager.getVideo(manager.urlController.text);
             },
           )
         ],
@@ -421,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 foregroundColor: Colors.white,
                 onPressed: () async {
                   FocusScope.of(context).requestFocus(new FocusNode());
-                  List<youtube.VideoStreamInfo> videoList = Downloader.extractVideoStreams(manager.mediaStream);
+                  List<youtube.VideoStreamInfo> videoList = manager.streamManifest.videoOnly.sortByVideoQuality();
                   List<String> response = await showModalBottomSheet(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
@@ -430,6 +431,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     builder: (context) {
                       return CustomDownloadMenu(
                         videoList: videoList,
+                        audioSize: (((manager.streamManifest.audioOnly.last.size.totalBytes)/1024)/1024).toStringAsFixed(2),
                         onSettingsPressed: () {
                           showDialog(
                             context: context,

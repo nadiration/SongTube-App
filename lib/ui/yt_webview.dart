@@ -145,22 +145,9 @@ class _YoutubeWebviewState extends State<YoutubeWebview> with AutomaticKeepAlive
                 );
                 return;
               }
-              String _id = youtube.YoutubeExplode.parseVideoId(_url);
-              if (_id == null) {
-                scaffoldState.currentState.showSnackBar(
-                  AppSnack.withEverything(
-                    context,
-                    Icons.error,
-                    "Error",
-                    "Select a valid video",
-                    Duration(seconds: 2)
-                  )
-                );
-                return;
-              }
               appData.screenIndex = 0;
               manager.urlController.text = _url;
-              manager.getMediaStreamInfo(_id);
+              manager.getVideo(_url);
             },
           ),
         ),

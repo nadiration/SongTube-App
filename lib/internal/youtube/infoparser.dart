@@ -1,36 +1,47 @@
-import 'package:songtube/ui/snackbar.dart';
-
 // Packages
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class YoutubeInfo {
 
   // Get link ID
-  static String getLinkID(String url) => YoutubeExplode.parseVideoId(url);
+  static String getLinkID(String url) => VideoId.parseVideoId(url);
 
-  // Get video information by ID
-  static Future<MediaStreamInfoSet> getVideoInfo(id) async {
+  // Get video information
+  static Future<Video> getVideoInfo(String url) async {
 
-    // MediaStream
+    // Video Details
     YoutubeExplode yt = YoutubeExplode();
-    MediaStreamInfoSet mediaStream;
+    Video videoDetails;
 
-    // Try get information from ID
+    // Try get video details by url
     try {
-      mediaStream = await yt.getVideoMediaStream(id);
-    } on VideoRequiresPurchaseException catch (_) {
-      appSnack.videoIsPremium();
-      yt.close(); return null;
+      videoDetails = await yt.videos.get(url);
     } on Exception catch (_) {
-      appSnack.internetError();
-      yt.close(); return null;
+      print("Couldn't get url");
+      return null;
     }
 
-    // Close YoutubeExplode() instance
-    yt.close();
+    // Return metadata and mediaStream
+    return videoDetails;
+  }
+
+  // Get Stream manifest
+  static Future<StreamManifest> getStreamManifest(String url) async {
+
+    // Stream Manifest
+    YoutubeExplode yt = YoutubeExplode();
+    StreamManifest streamManifest;
+
+    // Try get video manifest by url
+    try {
+      streamManifest = await yt.videos.streamsClient.getManifest(url);
+    } on Exception catch (_) {
+      print("Couldn't get url");
+      return null;
+    }
 
     // Return metadata and mediaStream
-    return mediaStream;
+    return streamManifest;
   }
 
   static Future<String> getChannelLink(String url) async {
@@ -39,9 +50,9 @@ class YoutubeInfo {
     YoutubeExplode yt = YoutubeExplode();
 
     // Get channel ID
-    String channelId = await yt.getChannelIdFromVideo(YoutubeExplode.parseVideoId(url));
-    
-    return "https://youtube.com/channel/" + channelId;
+    Channel channelId = await yt.channels.getByVideo(getLinkID(url));
+    yt.close();
+    return "https://youtube.com/channel/" + channelId.id.value;
   }
 
 }

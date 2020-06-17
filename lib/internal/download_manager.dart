@@ -4,6 +4,7 @@ import 'dart:io';
 
 // Flutter
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 // Packages
 import 'package:ext_storage/ext_storage.dart';
@@ -48,7 +49,8 @@ class DownloadManager {
         infoset.currentAction.add("Downloading...");
         try {
           _result = await infoset.downloader.downloadStream(
-            infoset.mediaStream,
+            infoset.videoDetails,
+            infoset.streamManifest,
             DownloadType.audio,
           );
         } on Exception catch (_) {
@@ -103,7 +105,8 @@ class DownloadManager {
 
         // Download raw Audio file
         _result = await infoset.downloader.downloadStream(
-          infoset.mediaStream,
+          infoset.videoDetails,
+          infoset.streamManifest,
           DownloadType.audio,
         ); if (_result == null) {closeDownload(1); return 1;}
 
@@ -143,7 +146,8 @@ class DownloadManager {
       infoset.currentAction.add("Downloading Video...");
       // Video
       _result = await infoset.downloader.downloadStream(
-        infoset.mediaStream,
+        infoset.videoDetails,
+        infoset.streamManifest,
         DownloadType.video,
         infoset.videoIndex
       ); if (_result == null) {closeDownload(1); return 1;}
@@ -152,7 +156,8 @@ class DownloadManager {
       infoset.currentAction.add("Downloading Audio...");
       // Audio
       _result = await infoset.downloader.downloadStream(
-        infoset.mediaStream,
+        infoset.videoDetails,
+        infoset.streamManifest,
         DownloadType.audio,
       ); if (_result == null) {closeDownload(1); return 1;}
       infoset.downloader.fileSize = infoset.downloader.fileSize + _result;
@@ -239,7 +244,7 @@ class DownloadManager {
         title: infoset.metadata.title,
         album: infoset.metadata.album,
         author: infoset.metadata.artist,
-        duration: infoset.mediaStream.videoDetails.duration.toString(),
+        duration: infoset.videoDetails.duration.toString(),
         downloadType: infoset.downloadType == DownloadType.audio
           ? "Audio"
           : "Video",
@@ -268,9 +273,16 @@ class DownloadManager {
         disc: infoset.metadata.disk,
         track: infoset.metadata.track
       );
+      String artworkUri;
+      final response = await http.get(infoset.videoDetails.thumbnails.maxResUrl);
+      if (response.statusCode == 200) {
+        artworkUri = infoset.videoDetails.thumbnails.maxResUrl;
+      } else {
+        artworkUri = infoset.videoDetails.thumbnails.highResUrl;
+      }
       await TagsManager.writeArtwork(
         songPath: filePath,
-        artworkUrl: infoset.mediaStream.videoDetails.thumbnailSet.maxResUrl
+        artworkUrl: artworkUri
       );
     } on Exception catch (e) {
       print(e);

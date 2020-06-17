@@ -94,9 +94,10 @@ class ManagerProvider extends ChangeNotifier {
               ScreenState(queue, mediaItem, playbackState));
 
   // -----------------------------
-  // App Global MediaStreamInfoSet
+  // YouTubeExplode Variables
   // -----------------------------
-  MediaStreamInfoSet _mediaStream;
+  Video _videoDetails;
+  StreamManifest _streamManifest;
 
   // --------
   // Database
@@ -123,11 +124,11 @@ class ManagerProvider extends ChangeNotifier {
   // Update TextControllers Information
   //  
   void updateTextControllers() {
-    titleController.text  = mediaStream.videoDetails.title;
+    titleController.text  = videoDetails.title;
     albumController.text  = "YouTube";
-    artistController.text = mediaStream.videoDetails.author;
+    artistController.text = videoDetails.author;
     genreController.text  = "Any";
-    dateController.text   = "${DateTime.now().year}/${DateTime.now().month}/${DateTime.now().day}";
+    dateController.text   = "${videoDetails.uploadDate.year}/${videoDetails.uploadDate.month}/${videoDetails.uploadDate.day}";
     discController.text   = "1";
     trackController.text  = "1";
     notifyListeners();
@@ -156,8 +157,8 @@ class ManagerProvider extends ChangeNotifier {
       case 0:
         openWebviewPlayer        = false;
         showLoadingBar           = false;
-        showFloatingActionButtom = true;
         mediaStreamReady         = true;
+        showFloatingActionButtom = true;
         break;
       default:
         print("ManagerProvider: invalid option");
@@ -167,15 +168,12 @@ class ManagerProvider extends ChangeNotifier {
   }
   // Handle incoming intents (Links via share)
   Future<int> handleIntent() async {
-    String url; String id;
+    String url;
     await NativeMethod.handleIntent().then((resultText) => url = resultText);
     if (url == null) return 1;
-    id = YoutubeInfo.getLinkID(url);
-    if (id == null) return 1;
     loadHome(1);
     urlController.text = url; notifyListeners();
-    await getMediaStreamInfo(id);
-    loadHome(0);
+    await getVideo(url);
     return 0;
   }
   Future<void> getDatabaseQueue() async {
@@ -214,20 +212,17 @@ class ManagerProvider extends ChangeNotifier {
   // Info & Downloads Management Functions
   // -------------------------------------
   //
-  // Get Link Information
-  String getIdFromLink() {
-    return YoutubeInfo.getLinkID(urlController.text);
-  }
   // Get Channel Link
   Future<String> getChannelLink() async {
     return await YoutubeInfo.getChannelLink(urlController.text);
   }
-  // Get Video MediaStreamInfo from Id
-  Future<int> getMediaStreamInfo(String id) async {
+  // Get Video Details and Stream
+  Future<int> getVideo(String url) async {
     loadHome(1);
-    MediaStreamInfoSet tmp;
+    Video videoTmp;
+    StreamManifest streamTmp;
     try {
-      tmp = await YoutubeInfo.getVideoInfo(id).timeout(Duration(seconds: 15),
+      videoTmp = await YoutubeInfo.getVideoInfo(url).timeout(Duration(seconds: 15),
         onTimeout: () {
           print("Timeout");
           loadHome(1);
@@ -239,11 +234,22 @@ class ManagerProvider extends ChangeNotifier {
       print(e);
       return null;
     }
-    if (tmp != null) {
-      mediaStream = tmp;
+    if (videoTmp != null) {
+      try {
+        streamTmp = await YoutubeInfo.getStreamManifest(url).timeout(Duration(seconds: 15),
+          onTimeout: () {
+            print("Timeout");
+            return null;
+          }
+        );
+      } on Exception catch (e) {
+        print(e);
+        return null;
+      }
+      streamManifest = streamTmp;
+      videoDetails = videoTmp;
       updateTextControllers();
       loadHome(0);
-      return 0;
     }
     return null;
   }
@@ -266,7 +272,7 @@ class ManagerProvider extends ChangeNotifier {
       albumController.text,
       artistController.text,
       genreController.text,
-      mediaStream.videoDetails.thumbnailSet.highResUrl,
+      videoDetails.thumbnails.highResUrl,
       dateController.text,
       discController.text,
       trackController.text,
@@ -293,7 +299,8 @@ class ManagerProvider extends ChangeNotifier {
     StreamController<String> currentAction = new StreamController.broadcast();
     DownloadInfoSet infoset = new DownloadInfoSet(
       currentAction: currentAction,
-      mediaStream: mediaStream,
+      videoDetails: videoDetails,
+      streamManifest: streamManifest,
       metadata: metadata,
       downloadType: downloadType,
       downloadPath: downloadPath,
@@ -315,10 +322,14 @@ class ManagerProvider extends ChangeNotifier {
   // Getters and Setters
   // -------------------
   //
-  // MediaStreamInfoSet Getter and Setter
-  MediaStreamInfoSet get mediaStream => _mediaStream;
-  set mediaStream(MediaStreamInfoSet newMediaStream) {
-    _mediaStream = newMediaStream;
+  Video get videoDetails => _videoDetails;
+  set videoDetails(Video newVideoDetails) {
+    _videoDetails = newVideoDetails;
+    notifyListeners();
+  }
+  StreamManifest get streamManifest => _streamManifest;
+  set streamManifest(StreamManifest newStreamManifest) {
+    _streamManifest = newStreamManifest;
     notifyListeners();
   }
   List<DownloadInfoSet> get downloadInfoSetList => _downloadInfoSetList;
