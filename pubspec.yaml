@@ -38,7 +38,7 @@ dependencies:
   youtube_explode_dart:
     git:
       url: git://github.com/SongTube/youtube_explode_dart.git
-      ref: master
+      ref: test
   ext_storage: ^1.0.3
   permission_handler: ^5.0.0+hotfix.3
   youtube_player_flutter: ^6.1.0+7
